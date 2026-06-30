@@ -4,10 +4,6 @@
     "builder": "dockerfile"
   },
   "deploy": {
-    "startCommand": "node server.js",
-    "startCommand": "npx vite preview --host --port $PORT",
-    "healthcheckPath": "/",
-    "restartPolicyType": "on-failure",
-    "restartPolicyMaxRetries": 3
+    "startCommand": "node server.js"
   }
 }
