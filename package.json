@@ -1,0 +1,15 @@
+{
+  "name": "bird-wheel-adventures",
+  "version": "1.0.0",
+  "description": "Educational game suite for autistic toddlers - birds, vehicles, counting, alphabet, and communication games",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview --host --port $PORT"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

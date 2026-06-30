@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" fill="#7BA598" rx="24"/>
+  <!-- Bird -->
+  <circle cx="70" cy="70" r="30" fill="white" opacity="0.9"/>
+  <polygon points="100,65 120,70 100,75" fill="#FFD166"/>
+  <circle cx="65" cy="65" r="4" fill="#333"/>
+  <!-- Vehicle -->
+  <rect x="95" y="105" width="60" height="30" rx="6" fill="white" opacity="0.9"/>
+  <circle cx="110" cy="138" r="8" fill="#333"/>
+  <circle cx="140" cy="138" r="8" fill="#333"/>
+</svg>
