@@ -14,10 +14,12 @@ const gameModules = {
   findTheBird: () => import('./games/FindTheBird.js'),
   wheelCounter: () => import('./games/WheelCounter.js'),
   freePlay: () => import('./games/FreePlay.js'),
-  cityExplorer: () => import('./games/CityExplorer.js')
+  cityExplorer: () => import('./games/CityExplorer.js'),
+  feedTheBirds: () => import('./games/FeedTheBirds.js')
 };
 
 const GAMES = [
+  { id: 'feedTheBirds', title: 'Feed the Birds', icon: '🌾', color: '#FF9800' },
   { id: 'birdCounter', title: 'Bird Counter', icon: '🐦', color: '#9BB8D3' },
   { id: 'vehicleABC', title: 'Vehicle ABC', icon: '🚗', color: '#C4A882' },
   { id: 'memoryMatch', title: 'Memory Match', icon: '🧠', color: '#D4A574' },
