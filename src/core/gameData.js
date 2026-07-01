@@ -15,33 +15,29 @@ export const BIRDS = [
   { name: 'Hummingbird', emoji: '🐦', sound: 'chirp', color: 'green' }
 ];
 
+/**
+ * VEHICLES - Accurate names that match their emojis.
+ * No fake names. Every emoji looks like the name says.
+ * Some letters (E, K, L, N, O, Q, U, W, X, Z) don't have good vehicle emojis —
+ * the Vehicle ABC game will skip those letters naturally.
+ */
 export const VEHICLES = [
-  { name: 'Airplane', emoji: '✈️', wheels: 3, letter: 'A', color: 'white' },
+  { name: 'Ambulance', emoji: '🚑', wheels: 4, letter: 'A', color: 'white' },
   { name: 'Bus', emoji: '🚌', wheels: 4, letter: 'B', color: 'yellow' },
   { name: 'Car', emoji: '🚗', wheels: 4, letter: 'C', color: 'red' },
-  { name: 'Dump Truck', emoji: '🚛', wheels: 6, letter: 'D', color: 'yellow' },
-  { name: 'Excavator', emoji: '🚜', wheels: 4, letter: 'E', color: 'yellow' },
+  { name: 'Delivery Truck', emoji: '🚚', wheels: 4, letter: 'D', color: 'white' },
   { name: 'Fire Truck', emoji: '🚒', wheels: 6, letter: 'F', color: 'red' },
   { name: 'Garbage Truck', emoji: '🚛', wheels: 6, letter: 'G', color: 'green' },
   { name: 'Helicopter', emoji: '🚁', wheels: 0, letter: 'H', color: 'white' },
-  { name: 'Ice Cream Truck', emoji: '🚐', wheels: 4, letter: 'I', color: 'pink' },
   { name: 'Jeep', emoji: '🚙', wheels: 4, letter: 'J', color: 'green' },
-  { name: 'Kart', emoji: '🏎️', wheels: 4, letter: 'K', color: 'red' },
-  { name: 'Limousine', emoji: '🚗', wheels: 6, letter: 'L', color: 'black' },
   { name: 'Motorcycle', emoji: '🏍️', wheels: 2, letter: 'M', color: 'red' },
-  { name: 'News Van', emoji: '🚐', wheels: 4, letter: 'N', color: 'white' },
-  { name: 'Oil Tanker', emoji: '🚛', wheels: 10, letter: 'O', color: 'gray' },
   { name: 'Police Car', emoji: '🚓', wheels: 4, letter: 'P', color: 'blue' },
-  { name: 'Quad Bike', emoji: '🏍️', wheels: 4, letter: 'Q', color: 'green' },
   { name: 'Race Car', emoji: '🏎️', wheels: 4, letter: 'R', color: 'red' },
-  { name: 'School Bus', emoji: '🚌', wheels: 4, letter: 'S', color: 'yellow' },
   { name: 'Taxi', emoji: '🚕', wheels: 4, letter: 'T', color: 'yellow' },
-  { name: 'Utility Truck', emoji: '🚚', wheels: 4, letter: 'U', color: 'white' },
+  { name: 'Tractor', emoji: '🚜', wheels: 4, letter: 'T', color: 'green' },
+  { name: 'Train', emoji: '🚆', wheels: 0, letter: 'T', color: 'blue' },
   { name: 'Van', emoji: '🚐', wheels: 4, letter: 'V', color: 'white' },
-  { name: 'Wagon', emoji: '🚗', wheels: 4, letter: 'W', color: 'red' },
-  { name: 'X-Ray Van', emoji: '🚐', wheels: 4, letter: 'X', color: 'white' },
-  { name: 'Yacht', emoji: '⛵', wheels: 0, letter: 'Y', color: 'white' },
-  { name: 'Zamboni', emoji: '🚜', wheels: 4, letter: 'Z', color: 'blue' }
+  { name: 'Yacht', emoji: '⛵', wheels: 0, letter: 'Y', color: 'white' }
 ];
 
 export const FIRST_WORDS = [
