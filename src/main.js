@@ -40,6 +40,11 @@ const gameTitle = document.getElementById('game-title');
 const settingsPanel = document.getElementById('settings-panel');
 
 function init() {
+  // Listen for in-game home requests
+  window.addEventListener('gohome', () => {
+    goHome();
+  });
+
   // Tap title to go home (fallback for stuck users)
   gameTitle.addEventListener('click', () => {
     if (currentGame) {
