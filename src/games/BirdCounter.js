@@ -1,4 +1,4 @@
-import { BIRDS, pickRandom, wait } from '../core/gameData.js';
+import { BIRDS, shuffle, wait } from '../core/gameData.js';
 
 /**
  * BirdCounter.js - Two interactive counting modes:
@@ -18,6 +18,28 @@ const LEVELS = [
   { label: '11-15 birds', min: 11, max: 15 },
   { label: '16-20 birds', min: 16, max: 20 }
 ];
+
+const COLOR_MAP = {
+  red:    '#D32F2F',
+  blue:   '#1976D2',
+  brown:  '#8D6E63',
+  green:  '#388E3C',
+  black:  '#333333',
+  yellow: '#F9A825',
+  pink:   '#F06292',
+  white:  '#E0E0E0'
+};
+
+const WING_COLOR_MAP = {
+  red:    '#B71C1C',
+  blue:   '#1565C0',
+  brown:  '#6D4C41',
+  green:  '#2E7D32',
+  black:  '#212121',
+  yellow: '#F57F17',
+  pink:   '#E91E63',
+  white:  '#BDBDBD'
+};
 
 export function init(container, { tts, audio, state }) {
   let currentLevel = 0;
@@ -43,11 +65,232 @@ export function init(container, { tts, audio, state }) {
   }
 
   // ============================================================
-  // MODE 1: "Birds Fly By!" - Dynamic flying birds
+  // CSS-DRAWN SCENE BUILDER
+  // ============================================================
+  function createScene() {
+    const scene = document.createElement('div');
+    scene.className = 'bird-scene';
+    scene.style.position = 'relative';
+    scene.style.width = '100%';
+    scene.style.maxWidth = '520px';
+    scene.style.height = '360px';
+    scene.style.background = 'linear-gradient(180deg, #7EC8E3 0%, #A8D8EA 45%, #C8E6C9 85%, #81C784 85%)';
+    scene.style.borderRadius = '20px';
+    scene.style.overflow = 'hidden';
+    scene.style.margin = '0 auto';
+    scene.style.border = '3px solid #7BA598';
+    return scene;
+  }
+
+  function addSkyElements(scene) {
+    // Sun
+    const sun = document.createElement('div');
+    sun.style.cssText = 'position:absolute;top:15px;right:25px;width:40px;height:40px;background:#FFD54F;border-radius:50%;box-shadow:0 0 15px #FFD54F;';
+    scene.appendChild(sun);
+
+    // Clouds
+    const clouds = [
+      { top: 20, left: 30, size: 1.5, opacity: 0.7 },
+      { top: 50, left: '60%', size: 1.2, opacity: 0.5 },
+      { top: 80, left: '40%', size: 1, opacity: 0.4 }
+    ];
+    clouds.forEach(c => {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position:absolute;top:${c.top}px;left:${typeof c.left === 'number' ? c.left + 'px' : c.left};
+        font-size:${c.size}rem;opacity:${c.opacity};pointer-events:none;z-index:1;
+      `;
+      el.textContent = '☁️';
+      scene.appendChild(el);
+    });
+  }
+
+  function addGroundAndTrees(scene) {
+    // Ground strip
+    const ground = document.createElement('div');
+    ground.style.cssText = `
+      position:absolute;bottom:0;left:0;width:100%;height:50px;
+      background:linear-gradient(180deg, #81C784 0%, #66BB6A 50%, #4CAF50 100%);
+      border-radius:0 0 17px 17px;z-index:2;
+    `;
+    scene.appendChild(ground);
+
+    // Hill in background
+    const hill = document.createElement('div');
+    hill.style.cssText = `
+      position:absolute;bottom:30px;left:-20px;width:200px;height:60px;
+      background:#A5D6A7;border-radius:50% 50% 0 0;z-index:1;
+    `;
+    scene.appendChild(hill);
+
+    const hill2 = document.createElement('div');
+    hill2.style.cssText = `
+      position:absolute;bottom:25px;right:-30px;width:250px;height:70px;
+      background:#81C784;border-radius:50% 50% 0 0;z-index:1;
+    `;
+    scene.appendChild(hill2);
+
+    // Trees
+    const treePositions = [
+      { left: 30, scale: 1 },
+      { left: 120, scale: 0.8 },
+      { left: 380, scale: 1.1 },
+      { left: 450, scale: 0.7 }
+    ];
+    treePositions.forEach(pos => {
+      const tree = document.createElement('div');
+      tree.style.cssText = `
+        position:absolute;bottom:40px;left:${pos.left}px;
+        transform:scale(${pos.scale});z-index:3;pointer-events:none;
+      `;
+
+      const trunk = document.createElement('div');
+      trunk.style.cssText = 'width:8px;height:30px;background:#8D6E63;margin:0 auto;border-radius:2px;';
+      tree.appendChild(trunk);
+
+      const foliage = document.createElement('div');
+      foliage.style.cssText = `
+        width:36px;height:36px;background:#43A047;border-radius:50%;
+        margin-top:-10px;margin-left:-14px;position:relative;
+      `;
+      tree.appendChild(foliage);
+
+      const foliage2 = document.createElement('div');
+      foliage2.style.cssText = `
+        width:28px;height:28px;background:#388E3C;border-radius:50%;
+        position:absolute;top:-22px;left:4px;
+      `;
+      foliage.appendChild(foliage2);
+
+      scene.appendChild(tree);
+    });
+
+    // Small flowers/bushes
+    const bushes = [{ left: 70 }, { left: 200 }, { left: 320 }, { left: 420 }];
+    bushes.forEach(b => {
+      const bush = document.createElement('div');
+      bush.style.cssText = `
+        position:absolute;bottom:42px;left:${b.left}px;
+        width:16px;height:10px;background:#66BB6A;border-radius:50%;z-index:2;
+      `;
+      scene.appendChild(bush);
+    });
+  }
+
+  // ============================================================
+  // CSS-DRAWN BIRD BUILDER
+  // ============================================================
+  function createBirdElement(bird, index) {
+    const color = COLOR_MAP[bird.color] || '#555';
+    const wingColor = WING_COLOR_MAP[bird.color] || '#444';
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'css-bird';
+    wrapper.style.cssText = `
+      position:absolute;left:-70px;top:40px;width:55px;height:35px;z-index:4;
+      will-change:transform;pointer-events:none;
+    `;
+
+    // Tail
+    const tail = document.createElement('div');
+    tail.style.cssText = `
+      position:absolute;left:-10px;top:14px;width:0;height:0;
+      border-right:14px solid ${color};border-top:7px solid transparent;
+      border-bottom:7px solid transparent;
+    `;
+    wrapper.appendChild(tail);
+
+    // Body
+    const body = document.createElement('div');
+    body.style.cssText = `
+      position:absolute;left:2px;top:10px;width:34px;height:20px;
+      background:${color};border-radius:50%;z-index:2;
+    `;
+    wrapper.appendChild(body);
+
+    // Head
+    const head = document.createElement('div');
+    head.style.cssText = `
+      position:absolute;right:-2px;top:4px;width:18px;height:18px;
+      background:${color};border-radius:50%;z-index:3;
+    `;
+    wrapper.appendChild(head);
+
+    // Beak
+    const beak = document.createElement('div');
+    beak.style.cssText = `
+      position:absolute;right:-11px;top:9px;width:0;height:0;
+      border-left:12px solid #FFA726;border-top:5px solid transparent;
+      border-bottom:5px solid transparent;z-index:3;
+    `;
+    wrapper.appendChild(beak);
+
+    // Eye
+    const eye = document.createElement('div');
+    eye.style.cssText = `
+      position:absolute;right:4px;top:8px;width:5px;height:5px;
+      background:#fff;border-radius:50%;z-index:4;
+    `;
+    wrapper.appendChild(eye);
+    const pupil = document.createElement('div');
+    pupil.style.cssText = `
+      position:absolute;right:5px;top:9px;width:2.5px;height:2.5px;
+      background:#333;border-radius:50%;z-index:5;
+    `;
+    wrapper.appendChild(pupil);
+
+    // Wing (the flapping part!)
+    const wing = document.createElement('div');
+    wing.style.cssText = `
+      position:absolute;left:8px;top:2px;width:26px;height:16px;
+      background:${wingColor};border-radius:50% 50% 50% 50% / 70% 70% 30% 30%;
+      transform-origin:4px 14px;z-index:4;opacity:0.9;
+      animation:birdFlapWing 0.38s ease-in-out infinite;
+    `;
+    wrapper.appendChild(wing);
+
+    // Give each bird a slightly different flap speed for natural variation
+    wing.style.animationDelay = `${(index * 0.07) % 0.3}s`;
+    wing.style.animationDuration = `${0.32 + Math.random() * 0.12}s`;
+
+    return wrapper;
+  }
+
+  // ============================================================
+  // FLAPPING ANIMATION STYLES
+  // ============================================================
+  function injectBirdStyles() {
+    if (document.getElementById('bird-counter-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'bird-counter-styles';
+    style.textContent = `
+      @keyframes birdFlapWing {
+        0%   { transform: rotate(-30deg) scaleY(1); }
+        25%  { transform: rotate(15deg) scaleY(0.85); }
+        50%  { transform: rotate(40deg) scaleY(0.7); }
+        75%  { transform: rotate(10deg) scaleY(0.9); }
+        100% { transform: rotate(-30deg) scaleY(1); }
+      }
+      @keyframes birdGlide {
+        0%   { transform: translateY(0px); }
+        50%  { transform: translateY(-6px); }
+        100% { transform: translateY(0px); }
+      }
+      @keyframes birdFlyAcross {
+        from { left: -70px; }
+        to   { left: calc(100% + 40px); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ============================================================
+  // MODE 1: "Birds Fly By!" - Flying birds with scenery
   // ============================================================
   async function startFlyByMode() {
     isBusy = true;
     clearBoard();
+    injectBirdStyles();
     const level = LEVELS[currentLevel];
     birdCount = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
 
@@ -62,23 +305,11 @@ export function init(container, { tts, audio, state }) {
     infoRow.innerHTML = `<div style="font-size:1rem;color:#666;">Level ${currentLevel + 1} • Birds Fly By!</div>`;
     board.appendChild(infoRow);
 
-    // The sky scene
-    const scene = document.createElement('div');
-    scene.style.position = 'relative';
-    scene.style.width = '100%';
-    scene.style.maxWidth = '520px';
-    scene.style.height = '320px';
-    scene.style.background = 'linear-gradient(180deg, #9BB8D3 0%, #C8D8E8 70%, #F5F0E8 70%)';
-    scene.style.borderRadius = '20px';
-    scene.style.overflow = 'hidden';
-    scene.style.margin = '0 auto';
-    scene.style.border = '3px solid #7BA598';
+    // The sky scene with ground and trees
+    const scene = createScene();
+    addSkyElements(scene);
+    addGroundAndTrees(scene);
     board.appendChild(scene);
-
-    // Cloud decorations
-    scene.innerHTML = '<div style="position:absolute;top:10px;left:20px;font-size:1.5rem;opacity:0.6;">☁️</div>' +
-                      '<div style="position:absolute;top:30px;right:40px;font-size:1.2rem;opacity:0.5;">☁️</div>' +
-                      '<div style="position:absolute;top:60px;left:50%;font-size:1rem;opacity:0.4;">☁️</div>';
 
     // Pick birds for this round
     const pool = shuffle([...BIRDS]);
@@ -87,66 +318,43 @@ export function init(container, { tts, audio, state }) {
       roundBirds.push(pool[i % pool.length]);
     }
 
-    // TTS: "Watch the birds fly by! Count them!"
+    // TTS intro
     await wait(300);
     await tts.speak('Watch the birds fly by! Count them!');
     await wait(500);
 
-    // Inject bird flight CSS animations
-    if (!document.getElementById('bird-flight-styles')) {
-      const style = document.createElement('style');
-      style.id = 'bird-flight-styles';
-      style.textContent = `
-        @keyframes birdFlap {
-          0%, 100% { transform: scaleY(1) rotate(0deg); }
-          25% { transform: scaleY(0.85) rotate(-8deg); }
-          50% { transform: scaleY(1) rotate(0deg); }
-          75% { transform: scaleY(0.85) rotate(8deg); }
-        }
-        @keyframes birdBob {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    // Fly each bird across the screen — slower, with flapping
+    // Fly each bird across the screen
     let counted = 0;
     for (const bird of roundBirds) {
-      const el = document.createElement('div');
-      el.textContent = bird.emoji;
-      el.style.fontSize = '2.5rem';
-      el.style.position = 'absolute';
-      el.style.left = '-60px';
-      // Vary height but keep within sky area
-      el.style.top = `${30 + (counted % 4) * 50 + Math.random() * 20}px`;
-      el.style.zIndex = '2';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      // Flapping animation
-      el.style.animation = 'birdFlap 0.35s ease-in-out infinite';
-      el.style.transformOrigin = 'center center';
+      // Staggered heights — birds fly at different sky levels (above trees)
+      const heightBands = [35, 75, 115, 155, 100, 60, 130, 50];
+      const baseTop = heightBands[counted % heightBands.length] + (Math.random() * 15 - 7);
+
+      const el = createBirdElement(bird, counted);
+      el.style.top = `${baseTop}px`;
       scene.appendChild(el);
 
-      // Start flight — slower (3.5s) with gentle bobbing
+      // Start flight — slower (4.5s) with smooth movement
       requestAnimationFrame(() => {
-        el.style.transition = 'left 3.5s ease-in-out, top 3.5s ease-in-out';
+        el.style.transition = 'left 4.5s ease-in-out, top 4.5s ease-in-out';
         el.style.left = 'calc(100% + 40px)';
-        el.style.top = `${parseFloat(el.style.top) - 5 + Math.random() * 10}px`;
+        el.style.top = `${baseTop - 5 + Math.random() * 10}px`;
       });
+
+      // Gentle bobbing while flying
+      el.style.animation = 'birdGlide 2s ease-in-out infinite';
+      el.style.animationDelay = `${Math.random() * 0.5}s`;
 
       audio.playChirp();
       counted++;
       const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
       await tts.speak(`${countWord}!`);
 
-      // Wait for bird to mostly clear before next one
-      await wait(1200);
+      // Wait before next bird (longer gap for counting)
+      await wait(1400);
     }
 
-    await wait(300);
+    await wait(400);
 
     // All birds flew past. Now ask: How many?
     const questionBoard = document.createElement('div');
@@ -166,7 +374,7 @@ export function init(container, { tts, audio, state }) {
     await tts.speak('How many birds flew by?');
     await wait(200);
 
-    // Number pad (big, simple)
+    // Number pad
     const maxNum = Math.min(birdCount + 3, 20);
     const startNum = Math.max(1, birdCount - 3);
     const numbers = [];
@@ -209,7 +417,6 @@ export function init(container, { tts, audio, state }) {
           audio.playHmm();
           await tts.speak(`Let's count again!`);
 
-          // Replay the birds flying back (show the count)
           await replayBirds(roundBirds, scene);
           await wait(300);
           await tts.speak(`There were ${birdCount} birds! Try again!`);
@@ -222,18 +429,13 @@ export function init(container, { tts, audio, state }) {
   }
 
   async function replayBirds(birds, scene) {
-    // Birds fly back in reverse, showing each with count
     let counted = 0;
     for (let i = 0; i < birds.length; i++) {
       const bird = birds[i];
-      const el = document.createElement('div');
-      el.textContent = bird.emoji;
-      el.style.fontSize = '2rem';
-      el.style.position = 'absolute';
-      el.style.left = '-40px';
+      const el = createBirdElement(bird, i);
       el.style.top = `${40 + (i % 3) * 60}px`;
-      el.style.transition = 'left 0.8s ease-in-out';
-      el.style.zIndex = '2';
+      el.style.left = '-60px';
+      el.style.transition = 'left 1s ease-in-out';
       scene.appendChild(el);
       requestAnimationFrame(() => {
         el.style.left = '50%';
@@ -241,14 +443,13 @@ export function init(container, { tts, audio, state }) {
       counted++;
       const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
       await tts.speak(`${countWord}!`);
+      await wait(500);
+      // Fade out
+      el.style.transition = 'opacity 0.5s';
+      el.style.opacity = '0';
       await wait(400);
     }
     await wait(500);
-    // Clear replay birds
-    scene.querySelectorAll('div[style*="position: absolute"]').forEach(el => {
-      if (!el.style.top.includes('px') || el.style.zIndex !== '2') return;
-      el.style.left = '120%';
-    });
   }
 
   async function showFlyByReward() {
@@ -304,11 +505,12 @@ export function init(container, { tts, audio, state }) {
   }
 
   // ============================================================
-  // MODE 2: "Count Them!" - Static birds on screen, tap to count
+  // MODE 2: "Count Them!" - Static birds on screen with scenery
   // ============================================================
   async function startCountThemMode() {
     isBusy = false;
     clearBoard();
+    injectBirdStyles();
     const level = LEVELS[currentLevel];
     birdCount = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
     let counted = 0;
@@ -339,16 +541,10 @@ export function init(container, { tts, audio, state }) {
     prompt.textContent = 'Tap the birds to count them!';
     board.appendChild(prompt);
 
-    const scene = document.createElement('div');
-    scene.style.position = 'relative';
-    scene.style.width = '100%';
-    scene.style.maxWidth = '520px';
-    scene.style.height = '320px';
-    scene.style.background = 'linear-gradient(180deg, #9BB8D3 0%, #C8D8E8 70%, #F5F0E8 70%)';
-    scene.style.borderRadius = '20px';
-    scene.style.overflow = 'hidden';
-    scene.style.margin = '0 auto';
-    scene.style.border = '3px solid #7BA598';
+    // The scene with scenery
+    const scene = createScene();
+    addSkyElements(scene);
+    addGroundAndTrees(scene);
     board.appendChild(scene);
 
     // Pick birds
@@ -358,29 +554,33 @@ export function init(container, { tts, audio, state }) {
       currentBirds.push({ ...pool[i % pool.length], id: i });
     }
 
-    // Place birds scattered
+    // Place birds in the sky area (above trees)
     const cols = birdCount <= 5 ? 3 : birdCount <= 10 ? 4 : 5;
+    const rows = Math.ceil(birdCount / cols);
+    const cellW = 440 / cols;
+    const cellH = 180 / Math.max(rows, 3);
+
     currentBirds.forEach((bird, i) => {
       const row = Math.floor(i / cols);
       const col = i % cols;
       const jitterX = (Math.random() - 0.5) * 20;
       const jitterY = (Math.random() - 0.5) * 20;
-      const x = col * 90 + 30 + jitterX;
-      const y = row * 70 + 30 + jitterY;
+      const x = col * cellW + 30 + jitterX;
+      const y = row * cellH + 30 + jitterY;
 
-      const el = document.createElement('div');
-      el.textContent = bird.emoji;
-      el.style.fontSize = '2.5rem';
-      el.style.position = 'absolute';
+      const el = createBirdElement(bird, i);
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+      el.style.pointerEvents = 'auto';
       el.style.cursor = 'pointer';
       el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-      el.style.userSelect = 'none';
-      el.style.zIndex = '2';
       el.style.opacity = '0';
       el.style.transform = 'translateY(-20px) scale(0.7)';
       el.dataset.tapped = 'false';
+
+      // Add a gentle hover animation
+      el.style.animation = 'birdGlide 2s ease-in-out infinite';
+      el.style.animationDelay = `${Math.random() * 0.8}s`;
 
       el.addEventListener('click', async () => {
         if (isBusy || el.dataset.tapped === 'true') return;
@@ -390,6 +590,7 @@ export function init(container, { tts, audio, state }) {
         counted++;
 
         el.dataset.tapped = 'true';
+        el.style.animation = 'none';
         el.style.transform = 'scale(1.2) translateY(-8px)';
         el.style.opacity = '0.5';
         el.style.pointerEvents = 'none';
@@ -548,7 +749,7 @@ export function init(container, { tts, audio, state }) {
     }
     board.appendChild(grid);
 
-    // Level selector (small tiles below)
+    // Level selector
     const levelRow = document.createElement('div');
     levelRow.style.marginTop = '1.5rem';
     levelRow.style.display = 'grid';
@@ -575,7 +776,6 @@ export function init(container, { tts, audio, state }) {
       tile.addEventListener('click', async () => {
         audio.playTap();
         currentLevel = idx;
-        // Visual feedback
         levelRow.querySelectorAll('.tile').forEach(t => {
           t.style.borderColor = '#E8E0D5';
           t.style.background = '#FFFFFF';
@@ -596,13 +796,4 @@ export function init(container, { tts, audio, state }) {
     clearBoard();
     tts.cancel();
   };
-}
-
-function shuffle(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
 }
