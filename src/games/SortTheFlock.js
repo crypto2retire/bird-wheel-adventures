@@ -1,62 +1,103 @@
-import { BIRDS, VEHICLES, shuffle, pickRandom, wait } from '../core/gameData.js';
+import { wait, shuffle } from '../core/gameData.js';
 
-const BIG_BIRDS = new Set(BIRDS.slice(0, 6).map(b => b.name));
-const SMALL_BIRDS = new Set(BIRDS.slice(6).map(b => b.name));
-function isBigVehicle(v) { return v.wheels >= 4; }
-const FLYING_VEHICLES = new Set(['Airplane', 'Helicopter']);
+/**
+ * Sort the Flock — Child must FIRST select a zone, THEN tap matching items.
+ * Only uses emojis that are reliably red or blue on all platforms.
+ */
 
-const LEVELS = [
-  { id: 1, name: 'Birds vs Vehicles', ttsPrompt: 'Birds go in the nest! Cars go in the garage!', zoneA: 'nest', zoneB: 'garage' },
-  { id: 2, name: 'Red vs Blue', ttsPrompt: 'Red things go to the red spot! Blue things go to the blue spot!', zoneA: 'red', zoneB: 'blue' },
-  { id: 3, name: 'Big vs Small', ttsPrompt: 'Big things go to the big spot! Small things go to the small spot!', zoneA: 'big', zoneB: 'small' },
-  { id: 4, name: 'Flying vs Ground', ttsPrompt: 'Flying things go to the sky! Rolling things go to the ground!', zoneA: 'flying', zoneB: 'ground' }
+const RED_ITEMS = [
+  { emoji: '🍎', name: 'apple', tts: 'Red apple!' },
+  { emoji: '❤️', name: 'heart', tts: 'Red heart!' },
+  { emoji: '🌹', name: 'rose', tts: 'Red rose!' },
+  { emoji: '🍓', name: 'strawberry', tts: 'Red strawberry!' },
+  { emoji: '🍒', name: 'cherries', tts: 'Red cherries!' },
+  { emoji: '🧨', name: 'firecracker', tts: 'Red firecracker!' },
+  { emoji: '🌶️', name: 'pepper', tts: 'Red pepper!' },
+  { emoji: '🔴', name: 'red circle', tts: 'Red circle!' },
+  { emoji: '❣️', name: 'red heart', tts: 'Red heart!' },
+  { emoji: '🍉', name: 'watermelon', tts: 'Red watermelon!' }
+];
+
+const BLUE_ITEMS = [
+  { emoji: '🫐', name: 'blueberries', tts: 'Blue blueberries!' },
+  { emoji: '💙', name: 'blue heart', tts: 'Blue heart!' },
+  { emoji: '🔵', name: 'blue circle', tts: 'Blue circle!' },
+  { emoji: '🐳', name: 'whale', tts: 'Blue whale!' },
+  { emoji: '💎', name: 'diamond', tts: 'Blue diamond!' },
+  { emoji: '🧊', name: 'ice', tts: 'Blue ice!' },
+  { emoji: '🌊', name: 'wave', tts: 'Blue wave!' },
+  { emoji: '🐟', name: 'fish', tts: 'Blue fish!' },
+  { emoji: '🦋', name: 'butterfly', tts: 'Blue butterfly!' },
+  { emoji: '🐬', name: 'dolphin', tts: 'Blue dolphin!' }
 ];
 
 export function init(container, { tts, audio, state }) {
   let isRunning = true;
-  let progress = state.getProgress('sortTheFlock') || { level: 1, totalPlayed: 0 };
-  let levelIdx = Math.min((progress.level || 1) - 1, LEVELS.length - 1);
-  let level = LEVELS[levelIdx];
+  let selectedZone = null; // 'red', 'blue', or null
   let sortedCount = 0;
   let totalItems = 0;
+  let redRemaining = 0;
+  let blueRemaining = 0;
+  let items = [];
+  let zoneAEl = null;
+  let zoneBEl = null;
+  let itemsRowEl = null;
+  let promptEl = null;
+  let redCount = 0;
+  let blueCount = 0;
 
   const board = document.createElement('div');
   board.className = 'game-board';
   board.style.width = '100%';
-  board.style.maxWidth = '460px';
-  board.style.gap = '10px';
+  board.style.maxWidth = '440px';
+  board.style.gap = '8px';
   container.appendChild(board);
 
-  // Build everything
   buildLevel();
 
   function buildLevel() {
     board.innerHTML = '';
+    selectedZone = null;
     sortedCount = 0;
 
-    // Progress bar
-    const progressBar = document.createElement('div');
-    progressBar.style.width = '100%';
-    progressBar.style.marginBottom = '4px';
-    progressBar.innerHTML = `<div style="font-size:0.9rem;color:#666;text-align:center;">Sort everything!</div><div id="sort-progress" style="font-size:1.3rem;font-weight:800;color:#7BA598;text-align:center;">0 / 0</div>`;
-    board.appendChild(progressBar);
+    // Pick 4 red and 4 blue items (8 total)
+    const redItems = shuffle([...RED_ITEMS]).slice(0, 4).map(i => ({ ...i, zone: 'red' }));
+    const blueItems = shuffle([...BLUE_ITEMS]).slice(0, 4).map(i => ({ ...i, zone: 'blue' }));
+    items = shuffle([...redItems, ...blueItems]);
+    totalItems = items.length;
+    redCount = redItems.length;
+    blueCount = blueItems.length;
+    redRemaining = redCount;
+    blueRemaining = blueCount;
 
-    // Prompt
-    const prompt = document.createElement('div');
-    prompt.className = 'game-prompt';
-    prompt.style.fontSize = '1.2rem';
-    prompt.textContent = level.ttsPrompt;
-    board.appendChild(prompt);
+    // Title
+    const title = document.createElement('div');
+    title.style.fontSize = '0.9rem';
+    title.style.color = '#666';
+    title.style.textAlign = 'center';
+    title.textContent = 'Sort by Color!';
+    board.appendChild(title);
 
-    // Items to sort
-    const itemsRow = document.createElement('div');
-    itemsRow.style.display = 'flex';
-    itemsRow.style.flexWrap = 'wrap';
-    itemsRow.style.gap = '10px';
-    itemsRow.style.justifyContent = 'center';
-    itemsRow.style.margin = '8px 0';
-    itemsRow.id = 'sort-items-row';
-    board.appendChild(itemsRow);
+    // Instruction prompt
+    promptEl = document.createElement('div');
+    promptEl.className = 'game-prompt';
+    promptEl.style.fontSize = '1.2rem';
+    promptEl.style.minHeight = '2.5rem';
+    promptEl.style.display = 'flex';
+    promptEl.style.alignItems = 'center';
+    promptEl.style.justifyContent = 'center';
+    promptEl.textContent = 'Tap a zone first!';
+    board.appendChild(promptEl);
+
+    // Zone counter
+    const counter = document.createElement('div');
+    counter.style.fontSize = '1.1rem';
+    counter.style.fontWeight = '700';
+    counter.style.color = '#7BA598';
+    counter.style.textAlign = 'center';
+    counter.id = 'sort-counter';
+    counter.textContent = '0 sorted / 8 left';
+    board.appendChild(counter);
 
     // Zones row
     const zonesRow = document.createElement('div');
@@ -64,37 +105,39 @@ export function init(container, { tts, audio, state }) {
     zonesRow.style.gap = '12px';
     zonesRow.style.justifyContent = 'center';
     zonesRow.style.width = '100%';
-    zonesRow.style.marginTop = '8px';
+    zonesRow.style.margin = '6px 0';
     board.appendChild(zonesRow);
 
-    // Get data for this level
-    const data = getLevelData(level);
-    totalItems = data.items.length;
+    // Zone A — Red
+    zoneAEl = makeZone({ key: 'red', emoji: '🔴', label: 'RED', color: '#E57373' });
+    zoneAEl.addEventListener('click', () => selectZone('red'));
+    zonesRow.appendChild(zoneAEl);
 
-    // Update progress text
-    const progressText = board.querySelector('#sort-progress');
-    if (progressText) progressText.textContent = `0 / ${totalItems}`;
+    // Zone B — Blue
+    zoneBEl = makeZone({ key: 'blue', emoji: '🔵', label: 'BLUE', color: '#64B5F6' });
+    zoneBEl.addEventListener('click', () => selectZone('blue'));
+    zonesRow.appendChild(zoneBEl);
 
-    // Create zone A
-    const zoneA = makeZone(data.zoneAConfig);
-    zonesRow.appendChild(zoneA);
+    // Items to sort
+    itemsRowEl = document.createElement('div');
+    itemsRowEl.style.display = 'flex';
+    itemsRowEl.style.flexWrap = 'wrap';
+    itemsRowEl.style.gap = '8px';
+    itemsRowEl.style.justifyContent = 'center';
+    itemsRowEl.style.margin = '6px 0';
+    board.appendChild(itemsRowEl);
 
-    // Create zone B
-    const zoneB = makeZone(data.zoneBConfig);
-    zonesRow.appendChild(zoneB);
-
-    // Create items
-    for (const item of data.items) {
-      const tile = makeItemTile(item, zoneA, zoneB);
-      itemsRow.appendChild(tile);
+    for (const item of items) {
+      const tile = makeItemTile(item);
+      itemsRowEl.appendChild(tile);
     }
 
     // Home button
     const homeBtn = document.createElement('button');
     homeBtn.className = 'btn-secondary';
-    homeBtn.style.marginTop = '8px';
+    homeBtn.style.marginTop = '6px';
     homeBtn.style.fontSize = '1rem';
-    homeBtn.style.minHeight = '50px';
+    homeBtn.style.minHeight = '44px';
     homeBtn.innerHTML = '🏠 Home';
     homeBtn.addEventListener('click', () => {
       audio.playTap();
@@ -103,75 +146,16 @@ export function init(container, { tts, audio, state }) {
     });
     board.appendChild(homeBtn);
 
-    // TTS after short delay
     wait(600).then(() => {
-      if (isRunning) tts.speak(level.ttsPrompt + ' Tap any item to sort!');
+      if (isRunning) tts.speak('Sort the colors! Tap the red zone or the blue zone first!');
     });
-  }
-
-  function getLevelData(lvl) {
-    switch (lvl.id) {
-      case 1: {
-        const birds = pickRandom(BIRDS, 3);
-        const vehicles = pickRandom(VEHICLES, 3);
-        const items = shuffle([
-          ...birds.map(b => ({ ...b, zone: 'nest' })),
-          ...vehicles.map(v => ({ ...v, zone: 'garage' }))
-        ]);
-        return {
-          items,
-          zoneAConfig: { key: 'nest', emoji: '🪺', label: 'Nest', color: '#A8C686' },
-          zoneBConfig: { key: 'garage', emoji: '🏠', label: 'Garage', color: '#D4A574' }
-        };
-      }
-      case 2: {
-        const redBirds = BIRDS.filter(b => b.color === 'red');
-        const blueBirds = BIRDS.filter(b => b.color === 'blue');
-        const redVehicles = VEHICLES.filter(v => v.color === 'red');
-        const blueVehicles = VEHICLES.filter(v => v.color === 'blue');
-        const reds = pickRandom([...redBirds, ...redVehicles], 3);
-        const blues = pickRandom([...blueBirds, ...blueVehicles], 3);
-        const items = shuffle([...reds.map(r => ({ ...r, zone: 'red' })), ...blues.map(b => ({ ...b, zone: 'blue' }))]);
-        return {
-          items,
-          zoneAConfig: { key: 'red', emoji: '🔴', label: 'Red', color: '#E57373' },
-          zoneBConfig: { key: 'blue', emoji: '🔵', label: 'Blue', color: '#64B5F6' }
-        };
-      }
-      case 3: {
-        const bigBirds = BIRDS.filter(b => BIG_BIRDS.has(b.name));
-        const smallBirds = BIRDS.filter(b => SMALL_BIRDS.has(b.name));
-        const bigVehicles = VEHICLES.filter(v => isBigVehicle(v));
-        const smallVehicles = VEHICLES.filter(v => !isBigVehicle(v));
-        const bigs = pickRandom([...bigBirds, ...bigVehicles], 3);
-        const smalls = pickRandom([...smallBirds, ...smallVehicles], 3);
-        const items = shuffle([...bigs.map(b => ({ ...b, zone: 'big' })), ...smalls.map(s => ({ ...s, zone: 'small' }))]);
-        return {
-          items,
-          zoneAConfig: { key: 'big', emoji: '🐘', label: 'Big', color: '#D4A574' },
-          zoneBConfig: { key: 'small', emoji: '🐜', label: 'Small', color: '#A8C686' }
-        };
-      }
-      case 4: {
-        const flying = VEHICLES.filter(v => FLYING_VEHICLES.has(v.name));
-        const ground = VEHICLES.filter(v => !FLYING_VEHICLES.has(v.name));
-        const flyItems = pickRandom(flying, 2);
-        const groundItems = pickRandom(ground, 4);
-        const items = shuffle([...flyItems.map(f => ({ ...f, zone: 'flying' })), ...groundItems.map(g => ({ ...g, zone: 'ground' }))]);
-        return {
-          items,
-          zoneAConfig: { key: 'flying', emoji: '☁️', label: 'Sky', color: '#9BB8D3' },
-          zoneBConfig: { key: 'ground', emoji: '🛣️', label: 'Ground', color: '#C4A882' }
-        };
-      }
-    }
   }
 
   function makeZone(cfg) {
     const el = document.createElement('div');
     el.className = 'tile';
-    el.style.minWidth = '120px';
-    el.style.minHeight = '90px';
+    el.style.minWidth = '110px';
+    el.style.minHeight = '80px';
     el.style.display = 'flex';
     el.style.flexDirection = 'column';
     el.style.alignItems = 'center';
@@ -183,45 +167,122 @@ export function init(container, { tts, audio, state }) {
     el.style.fontSize = '1rem';
     el.style.fontWeight = '700';
     el.style.color = '#3D3D3D';
+    el.style.cursor = 'pointer';
+    el.style.transition = 'all 0.3s ease';
+    el.style.userSelect = 'none';
     el.style.boxShadow = `0 0 0 3px ${cfg.color}40`;
     el.innerHTML = `<span style="font-size:2.2rem;">${cfg.emoji}</span><span>${cfg.label}</span>`;
     el.dataset.zoneKey = cfg.key;
     return el;
   }
 
-  function makeItemTile(item, zoneA, zoneB) {
+  function makeItemTile(item) {
     const el = document.createElement('div');
     el.className = 'tile';
     el.style.fontSize = '2.5rem';
-    el.style.minWidth = '70px';
-    el.style.minHeight = '70px';
+    el.style.minWidth = '65px';
+    el.style.minHeight = '65px';
     el.style.display = 'flex';
     el.style.alignItems = 'center';
     el.style.justifyContent = 'center';
     el.style.cursor = 'pointer';
     el.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
     el.style.border = '3px solid #E8E0D5';
+    el.style.background = '#FFFFFF';
     el.textContent = item.emoji;
     el.dataset.zone = item.zone;
     el.dataset.name = item.name;
     el.dataset.sorted = 'false';
+    el.dataset.tts = item.tts;
+    el.style.userSelect = 'none';
 
-    el.addEventListener('click', () => onItemTap(el, item, zoneA, zoneB));
+    el.addEventListener('click', () => onItemTap(el));
     return el;
   }
 
-  async function onItemTap(el, item, zoneA, zoneB) {
+  function selectZone(zone) {
+    if (!isRunning) return;
+    audio.playTap();
+
+    selectedZone = zone;
+
+    // Clear both zones
+    zoneAEl.style.borderColor = '#E57373';
+    zoneAEl.style.boxShadow = '0 0 0 3px #E5737340';
+    zoneBEl.style.borderColor = '#64B5F6';
+    zoneBEl.style.boxShadow = '0 0 0 3px #64B5F640';
+
+    // Highlight selected zone
+    if (zone === 'red') {
+      zoneAEl.style.borderColor = '#4CAF50';
+      zoneAEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      promptEl.textContent = 'Tap red things!';
+      tts.speak('Red zone! Now tap red things!');
+    } else {
+      zoneBEl.style.borderColor = '#4CAF50';
+      zoneBEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      promptEl.textContent = 'Tap blue things!';
+      tts.speak('Blue zone! Now tap blue things!');
+    }
+  }
+
+  async function onItemTap(el) {
     if (!isRunning || el.dataset.sorted === 'true') return;
 
+    const itemZone = el.dataset.zone;
+    const itemName = el.dataset.name;
+    const itemTTS = el.dataset.tts;
+
+    // No zone selected yet — prompt to select one
+    if (!selectedZone) {
+      audio.playTap();
+      tts.speak('Tap the red zone or blue zone first!');
+      promptEl.textContent = 'Tap a zone first!';
+      // Flash both zones
+      zoneAEl.style.animation = 'gentleShake 0.4s ease';
+      zoneBEl.style.animation = 'gentleShake 0.4s ease';
+      await wait(400);
+      zoneAEl.style.animation = '';
+      zoneBEl.style.animation = '';
+      return;
+    }
+
+    // Wrong zone selected — redirect
+    if (itemZone !== selectedZone) {
+      audio.playTap();
+      const correctZone = itemZone === 'red' ? 'red' : 'blue';
+      promptEl.textContent = `That's ${itemZone}! Tap ${correctZone} zone!`;
+      tts.speak(`That's ${itemZone}! Tap the ${correctZone} zone!`);
+
+      // Switch highlight to correct zone
+      zoneAEl.style.borderColor = '#E57373';
+      zoneAEl.style.boxShadow = '0 0 0 3px #E5737340';
+      zoneBEl.style.borderColor = '#64B5F6';
+      zoneBEl.style.boxShadow = '0 0 0 3px #64B5F640';
+
+      if (itemZone === 'red') {
+        zoneAEl.style.borderColor = '#4CAF50';
+        zoneAEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      } else {
+        zoneBEl.style.borderColor = '#4CAF50';
+        zoneBEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      }
+      selectedZone = itemZone;
+      return;
+    }
+
+    // Correct! Sort this item
     audio.playTap();
     el.dataset.sorted = 'true';
     el.style.pointerEvents = 'none';
+    sortedCount++;
 
-    // Determine correct zone
-    const correctZone = item.zone === zoneA.dataset.zoneKey ? zoneA : zoneB;
+    if (itemZone === 'red') redRemaining--;
+    else blueRemaining--;
 
-    // Animate to zone
-    const zoneRect = correctZone.getBoundingClientRect();
+    // Animate to selected zone
+    const targetZone = itemZone === 'red' ? zoneAEl : zoneBEl;
+    const zoneRect = targetZone.getBoundingClientRect();
     const itemRect = el.getBoundingClientRect();
     const dx = zoneRect.left + zoneRect.width / 2 - itemRect.left - itemRect.width / 2;
     const dy = zoneRect.top + zoneRect.height / 2 - itemRect.top - itemRect.height / 2;
@@ -232,44 +293,69 @@ export function init(container, { tts, audio, state }) {
     el.style.position = 'relative';
 
     await wait(400);
-
-    // Remove item from items row
     el.remove();
 
     // Add badge to zone
     const badge = document.createElement('div');
-    badge.style.fontSize = '1.3rem';
+    badge.style.fontSize = '1.2rem';
     badge.style.position = 'absolute';
     badge.style.pointerEvents = 'none';
-    badge.textContent = item.emoji;
-    correctZone.appendChild(badge);
+    badge.textContent = el.textContent;
+    targetZone.appendChild(badge);
 
     // Re-arrange badges
-    const badges = correctZone.querySelectorAll('div');
+    const badges = targetZone.querySelectorAll('div');
     badges.forEach((b, i) => {
-      b.style.transform = `translate(${(i * 14) - ((badges.length - 1) * 7)}px, -4px)`;
+      b.style.transform = `translate(${(i * 12) - ((badges.length - 1) * 6)}px, -3px)`;
     });
 
     audio.playChime();
-    sortedCount++;
 
-    // Update progress
-    const progressText = board.querySelector('#sort-progress');
-    if (progressText) progressText.textContent = `${sortedCount} / ${totalItems}`;
+    // Update counter
+    const remaining = totalItems - sortedCount;
+    const counterEl = document.getElementById('sort-counter');
+    if (counterEl) counterEl.textContent = `${sortedCount} sorted / ${remaining} left`;
 
     // TTS
-    await tts.speak(`${item.name} goes to the ${correctZone.querySelector('span:last-child')?.textContent || 'spot'}!`);
+    await tts.speak(itemTTS);
 
-    // Check complete
-    if (sortedCount >= totalItems) {
-      await wait(600);
-      showReward();
+    // Check if current zone is empty
+    if (selectedZone === 'red' && redRemaining === 0) {
+      // Red zone empty, check if blue is also empty
+      if (blueRemaining === 0) {
+        await wait(500);
+        showReward();
+        return;
+      }
+      // Prompt to switch to blue
+      promptEl.textContent = 'Red done! Tap blue zone!';
+      await wait(200);
+      tts.speak('Red zone is done! Now tap the blue zone!');
+      // Switch highlight to blue
+      zoneAEl.style.borderColor = '#E57373';
+      zoneAEl.style.boxShadow = '0 0 0 3px #E5737340';
+      zoneBEl.style.borderColor = '#4CAF50';
+      zoneBEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      selectedZone = 'blue';
+    } else if (selectedZone === 'blue' && blueRemaining === 0) {
+      if (redRemaining === 0) {
+        await wait(500);
+        showReward();
+        return;
+      }
+      promptEl.textContent = 'Blue done! Tap red zone!';
+      await wait(200);
+      tts.speak('Blue zone is done! Now tap the red zone!');
+      zoneBEl.style.borderColor = '#64B5F6';
+      zoneBEl.style.boxShadow = '0 0 0 3px #64B5F640';
+      zoneAEl.style.borderColor = '#4CAF50';
+      zoneAEl.style.boxShadow = '0 0 0 6px rgba(76, 175, 80, 0.3)';
+      selectedZone = 'red';
     }
   }
 
   async function showReward() {
     board.innerHTML = '';
-
     const reward = document.createElement('div');
     reward.className = 'reward-screen fade-in';
     reward.innerHTML = `
@@ -277,27 +363,18 @@ export function init(container, { tts, audio, state }) {
       <div class="game-prompt" style="margin-top:12px;">All sorted!</div>
       <div style="font-size:1.3rem;color:#555;margin-top:8px;">Great job!</div>
       <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
-        <button id="sf-next" class="btn-primary">Next Level</button>
+        <button id="sf-replay" class="btn-primary">Play Again!</button>
         <button id="sf-home" class="btn-secondary">Home</button>
       </div>
     `;
     board.appendChild(reward);
-
     audio.playCelebrate();
-    await tts.speak('Great job! You sorted everything!');
+    await tts.speak('You sorted all the colors! Great job!');
 
-    progress.totalPlayed = (progress.totalPlayed || 0) + 1;
-    state.updateProgress('sortTheFlock', progress);
-
-    reward.querySelector('#sf-next').addEventListener('click', () => {
+    reward.querySelector('#sf-replay').addEventListener('click', () => {
       audio.playTap();
-      levelIdx = (levelIdx + 1) % LEVELS.length;
-      level = LEVELS[levelIdx];
-      progress.level = levelIdx + 1;
-      state.updateProgress('sortTheFlock', progress);
       buildLevel();
     });
-
     reward.querySelector('#sf-home').addEventListener('click', () => {
       audio.playTap();
       const backBtn = document.getElementById('back-btn');
