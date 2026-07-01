@@ -92,7 +92,26 @@ export function init(container, { tts, audio, state }) {
     await tts.speak('Watch the birds fly by! Count them!');
     await wait(500);
 
-    // Fly each bird across the screen
+    // Inject bird flight CSS animations
+    if (!document.getElementById('bird-flight-styles')) {
+      const style = document.createElement('style');
+      style.id = 'bird-flight-styles';
+      style.textContent = `
+        @keyframes birdFlap {
+          0%, 100% { transform: scaleY(1) rotate(0deg); }
+          25% { transform: scaleY(0.85) rotate(-8deg); }
+          50% { transform: scaleY(1) rotate(0deg); }
+          75% { transform: scaleY(0.85) rotate(8deg); }
+        }
+        @keyframes birdBob {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-8px); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Fly each bird across the screen — slower, with flapping
     let counted = 0;
     for (const bird of roundBirds) {
       const el = document.createElement('div');
@@ -100,14 +119,22 @@ export function init(container, { tts, audio, state }) {
       el.style.fontSize = '2.5rem';
       el.style.position = 'absolute';
       el.style.left = '-60px';
-      el.style.top = `${40 + Math.random() * 160}px`;
-      el.style.transition = 'left 1.5s ease-in-out, transform 0.3s ease';
+      // Vary height but keep within sky area
+      el.style.top = `${30 + (counted % 4) * 50 + Math.random() * 20}px`;
       el.style.zIndex = '2';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
+      // Flapping animation
+      el.style.animation = 'birdFlap 0.35s ease-in-out infinite';
+      el.style.transformOrigin = 'center center';
       scene.appendChild(el);
 
-      // Animate across
+      // Start flight — slower (3.5s) with gentle bobbing
       requestAnimationFrame(() => {
-        el.style.left = 'calc(100% + 20px)';
+        el.style.transition = 'left 3.5s ease-in-out, top 3.5s ease-in-out';
+        el.style.left = 'calc(100% + 40px)';
+        el.style.top = `${parseFloat(el.style.top) - 5 + Math.random() * 10}px`;
       });
 
       audio.playChirp();
@@ -115,7 +142,8 @@ export function init(container, { tts, audio, state }) {
       const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
       await tts.speak(`${countWord}!`);
 
-      await wait(400); // gap between birds
+      // Wait for bird to mostly clear before next one
+      await wait(1200);
     }
 
     await wait(300);
