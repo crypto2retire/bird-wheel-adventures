@@ -1,30 +1,35 @@
 import { BIRDS, VEHICLES, pickRandom, shuffle, wait } from '../core/gameData.js';
 
-const LEVELS = [
-  { name: 1, pairs: 2, cols: 'cols-2' },
-  { name: 2, pairs: 3, cols: 'cols-3' },
-  { name: 3, pairs: 6, cols: 'cols-4' },
-  { name: 4, pairs: 8, cols: 'cols-4' },
-];
+const MAX_LEVEL = 10; // 2 pairs at level 0, 12 pairs at level 10
 
 export function init(container, { tts, audio, state }) {
   const settings = state.getSettings();
-  let currentLevel = 0;
+  let currentLevel = 0; // 0-based; 0 = 2 pairs, 1 = 3 pairs, etc.
   let cards = [];
   let flipped = [];
   let matched = 0;
   let isBusy = false;
+  let isPreviewPhase = false;
 
   const progress = state.getProgress('memoryMatch') || {};
-  currentLevel = Math.min(
-    (progress.level || 1) - 1,
-    LEVELS.length - 1
-  );
-  const gamesPlayed = (progress.gamesPlayed || 0);
+  currentLevel = Math.min((progress.level || 1) - 1, MAX_LEVEL);
+  const gamesPlayed = progress.gamesPlayed || 0;
 
-  function buildBoard(levelIndex) {
-    const level = LEVELS[levelIndex];
-    const pairCount = level.pairs;
+  function getPairCount(level) {
+    return 2 + level; // level 0 -> 2 pairs, level 1 -> 3 pairs, ...
+  }
+
+  function getColsClass(pairCount) {
+    const total = pairCount * 2;
+    if (total <= 4) return 'cols-2';
+    if (total <= 6) return 'cols-3';
+    if (total <= 12) return 'cols-3';
+    return 'cols-4';
+  }
+
+  function buildBoard(level) {
+    const pairCount = getPairCount(level);
+    const totalCards = pairCount * 2;
     const birdCount = Math.min(Math.ceil(pairCount / 2), BIRDS.length);
     const vehicleCount = Math.min(pairCount - birdCount, VEHICLES.length);
     const birds = pickRandom(BIRDS, birdCount);
@@ -66,7 +71,7 @@ export function init(container, { tts, audio, state }) {
     });
 
     const grid = document.createElement('div');
-    grid.className = `tile-grid ${level.cols}`;
+    grid.className = `tile-grid ${getColsClass(pairCount)}`;
     grid.style.maxWidth = '480px';
     grid.style.margin = '0 auto';
     grid.style.padding = '0.5rem';
@@ -75,8 +80,33 @@ export function init(container, { tts, audio, state }) {
     return grid;
   }
 
+  async function showPreview(board) {
+    isPreviewPhase = true;
+    // Reveal all cards face-up
+    for (const card of cards) {
+      card.flipped = true;
+      card.element.classList.add('flipped');
+      card.element.innerHTML = `<span style="font-size:2.5rem;">${card.item.emoji}</span>`;
+      card.element.setAttribute('aria-label', card.item.name);
+    }
+
+    await tts.speak('Look at all the cards! Remember where they are.');
+    await wait(3000); // 3-second preview
+
+    // Flip all cards face-down
+    for (const card of cards) {
+      card.flipped = false;
+      card.element.classList.remove('flipped');
+      card.element.innerHTML = `<span style="font-size:2rem;opacity:0.35;">❓</span>`;
+      card.element.setAttribute('aria-label', 'Hidden card');
+    }
+
+    isPreviewPhase = false;
+    await tts.speak('Now find the matching pairs!');
+  }
+
   async function onCardClick(index) {
-    if (isBusy) return;
+    if (isBusy || isPreviewPhase) return;
     const card = cards[index];
     if (card.flipped || card.matched) return;
 
@@ -88,7 +118,7 @@ export function init(container, { tts, audio, state }) {
 
     tts.cancel();
     await wait(100);
-    tts.speak(`You found a ${card.item.name}!`);
+    tts.speak(`${card.item.name}`);
 
     flipped.push(index);
 
@@ -115,7 +145,7 @@ export function init(container, { tts, audio, state }) {
         flipped = [];
         isBusy = false;
 
-        if (matched === LEVELS[currentLevel].pairs) {
+        if (matched === getPairCount(currentLevel)) {
           await wait(1200);
           await showReward();
         }
@@ -173,6 +203,8 @@ export function init(container, { tts, audio, state }) {
     replayBtn.addEventListener('click', async () => {
       audio.playTap();
       replayBtn.disabled = true;
+      // Increase level by 1 (adds 2 more cards / 1 more pair), cap at MAX_LEVEL
+      currentLevel = Math.min(currentLevel + 1, MAX_LEVEL);
       await startLevel();
     });
   }
@@ -185,7 +217,9 @@ export function init(container, { tts, audio, state }) {
     const header = document.createElement('div');
     header.style.textAlign = 'center';
     header.style.marginBottom = '1rem';
-    header.innerHTML = `<div style="font-size:1.1rem;color:#666;">Level ${currentLevel + 1} • Find the pairs!</div>`;
+    const pairCount = getPairCount(currentLevel);
+    const totalCards = pairCount * 2;
+    header.innerHTML = `<div style="font-size:1.1rem;color:#666;">Level ${currentLevel + 1} • ${totalCards} cards • Find the pairs!</div>`;
     board.appendChild(header);
 
     const grid = buildBoard(currentLevel);
@@ -193,7 +227,7 @@ export function init(container, { tts, audio, state }) {
     container.appendChild(board);
 
     await wait(500);
-    tts.speak('Find the matching pairs! Tap a card to see what is hidden.');
+    await showPreview(board);
   }
 
   startLevel();
