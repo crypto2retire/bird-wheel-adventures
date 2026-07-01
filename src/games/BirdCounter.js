@@ -1,9 +1,9 @@
 import { BIRDS, pickRandom, wait } from '../core/gameData.js';
 
 /**
- * BirdCounter.js - Interactive counting game with birds
- * The child taps birds one by one. Each bird chirps and the TTS counts aloud.
- * No number buttons. No quiz format. Just tap birds and count together.
+ * BirdCounter.js - Two interactive counting modes:
+ * 1. "Birds Fly By!" - Birds fly across screen, child counts them, then answers how many
+ * 2. "Count Them!" - Birds appear on screen, child taps each to count
  */
 
 const NUMBER_WORDS = [
@@ -12,14 +12,11 @@ const NUMBER_WORDS = [
   'twenty-one', 'twenty-two', 'twenty-three', 'twenty-four', 'twenty-five', 'twenty-six', 'twenty-seven', 'twenty-eight', 'twenty-nine', 'thirty'
 ];
 
-// Bird count per level
 const LEVELS = [
   { label: '1-5 birds', min: 1, max: 5 },
   { label: '6-10 birds', min: 6, max: 10 },
   { label: '11-15 birds', min: 11, max: 15 },
-  { label: '16-20 birds', min: 16, max: 20 },
-  { label: '21-25 birds', min: 21, max: 25 },
-  { label: '26-30 birds', min: 26, max: 30 }
+  { label: '16-20 birds', min: 16, max: 20 }
 ];
 
 export function init(container, { tts, audio, state }) {
@@ -27,8 +24,6 @@ export function init(container, { tts, audio, state }) {
   let stars = 0;
   let totalPlayed = 0;
   let birdCount = 0;
-  let currentBirds = [];
-  let counted = 0; // how many birds tapped so far
   let isBusy = false;
   let cleanupCallbacks = [];
 
@@ -41,133 +36,194 @@ export function init(container, { tts, audio, state }) {
     state.updateProgress('birdCounter', { level: currentLevel + 1, stars, totalPlayed });
   }
 
-  function generateRound() {
-    const level = LEVELS[currentLevel];
-    birdCount = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
-    counted = 0;
-
-    // Pick birds, repeating if needed to fill the count
-    const pool = shuffle([...BIRDS]);
-    currentBirds = [];
-    for (let i = 0; i < birdCount; i++) {
-      currentBirds.push({ ...pool[i % pool.length], id: i });
-    }
-  }
-
   function clearBoard() {
     container.innerHTML = '';
     cleanupCallbacks.forEach(cb => cb());
     cleanupCallbacks = [];
   }
 
-  function getPosition(index, total) {
-    // Distribute birds in a scattered but evenly-spread layout
-    // Use a grid-like scatter within a bounded area
-    const cols = total <= 5 ? 3 : total <= 10 ? 4 : 5;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-    const jitterX = (Math.random() - 0.5) * 30; // +/- 15px randomness
-    const jitterY = (Math.random() - 0.5) * 30;
-    return { x: col * 90 + 40 + jitterX, y: row * 90 + 30 + jitterY };
-  }
+  // ============================================================
+  // MODE 1: "Birds Fly By!" - Dynamic flying birds
+  // ============================================================
+  async function startFlyByMode() {
+    isBusy = true;
+    clearBoard();
+    const level = LEVELS[currentLevel];
+    birdCount = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
 
-  function createBirdScene() {
+    const board = document.createElement('div');
+    board.className = 'game-board';
+    container.appendChild(board);
+
+    // Level label
+    const infoRow = document.createElement('div');
+    infoRow.style.textAlign = 'center';
+    infoRow.style.marginBottom = '0.5rem';
+    infoRow.innerHTML = `<div style="font-size:1rem;color:#666;">Level ${currentLevel + 1} • Birds Fly By!</div>`;
+    board.appendChild(infoRow);
+
+    // The sky scene
     const scene = document.createElement('div');
     scene.style.position = 'relative';
     scene.style.width = '100%';
     scene.style.maxWidth = '520px';
-    scene.style.height = '380px';
-    scene.style.background = 'linear-gradient(180deg, #9BB8D3 0%, #E8F0F8 40%, #F5F0E8 40%)';
+    scene.style.height = '320px';
+    scene.style.background = 'linear-gradient(180deg, #9BB8D3 0%, #C8D8E8 70%, #F5F0E8 70%)';
     scene.style.borderRadius = '20px';
     scene.style.overflow = 'hidden';
     scene.style.margin = '0 auto';
     scene.style.border = '3px solid #7BA598';
+    board.appendChild(scene);
 
-    // Add a "wire" line for birds to sit on
-    const wire = document.createElement('div');
-    wire.style.position = 'absolute';
-    wire.style.top = '50%';
-    wire.style.left = '0';
-    wire.style.width = '100%';
-    wire.style.height = '3px';
-    wire.style.background = '#8B7355';
-    wire.style.zIndex = '1';
-    scene.appendChild(wire);
+    // Cloud decorations
+    scene.innerHTML = '<div style="position:absolute;top:10px;left:20px;font-size:1.5rem;opacity:0.6;">☁️</div>' +
+                      '<div style="position:absolute;top:30px;right:40px;font-size:1.2rem;opacity:0.5;">☁️</div>' +
+                      '<div style="position:absolute;top:60px;left:50%;font-size:1rem;opacity:0.4;">☁️</div>';
 
-    return scene;
-  }
-
-  function createBirdElement(bird, index) {
-    const el = document.createElement('div');
-    el.className = 'bird-item';
-    el.dataset.index = String(index);
-    el.style.fontSize = '2.8rem';
-    el.style.cursor = 'pointer';
-    el.style.position = 'absolute';
-    el.style.zIndex = '2';
-    el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
-    el.style.userSelect = 'none';
-    el.style.touchAction = 'manipulation';
-    el.textContent = bird.emoji;
-    el.setAttribute('role', 'img');
-    el.setAttribute('aria-label', bird.name);
-
-    const pos = getPosition(index, birdCount);
-    el.style.left = `${pos.x}px`;
-    el.style.top = `${pos.y}px`;
-
-    // Initial "fly in" animation offset
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(-30px) scale(0.7)';
-
-    return el;
-  }
-
-  async function handleBirdTap(birdEl, bird, index) {
-    if (isBusy || birdEl.dataset.tapped === 'true') return;
-    isBusy = true;
-
-    audio.playTap();
-    audio.playChirp();
-    counted++;
-
-    birdEl.dataset.tapped = 'true';
-    birdEl.style.transform = 'scale(1.3) translateY(-10px)';
-    birdEl.style.opacity = '0.5'; // slightly dim to show it was counted
-    birdEl.style.pointerEvents = 'none';
-
-    // Update the counter display
-    const counterEl = document.getElementById('bird-counter-display');
-    if (counterEl) {
-      counterEl.textContent = `${counted} / ${birdCount}`;
+    // Pick birds for this round
+    const pool = shuffle([...BIRDS]);
+    const roundBirds = [];
+    for (let i = 0; i < birdCount; i++) {
+      roundBirds.push(pool[i % pool.length]);
     }
 
-    const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
-    await tts.speak(`${countWord}!`);
+    // TTS: "Watch the birds fly by! Count them!"
+    await wait(300);
+    await tts.speak('Watch the birds fly by! Count them!');
+    await wait(500);
+
+    // Fly each bird across the screen
+    let counted = 0;
+    for (const bird of roundBirds) {
+      const el = document.createElement('div');
+      el.textContent = bird.emoji;
+      el.style.fontSize = '2.5rem';
+      el.style.position = 'absolute';
+      el.style.left = '-60px';
+      el.style.top = `${40 + Math.random() * 160}px`;
+      el.style.transition = 'left 1.5s ease-in-out, transform 0.3s ease';
+      el.style.zIndex = '2';
+      scene.appendChild(el);
+
+      // Animate across
+      requestAnimationFrame(() => {
+        el.style.left = 'calc(100% + 20px)';
+      });
+
+      audio.playChirp();
+      counted++;
+      const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
+      await tts.speak(`${countWord}!`);
+
+      await wait(400); // gap between birds
+    }
 
     await wait(300);
-    birdEl.style.transform = 'scale(1) translateY(0)';
 
-    if (counted === birdCount) {
-      // All birds counted!
-      await wait(400);
-      audio.playChime();
-      await wait(200);
-      audio.playCelebrate();
-      await tts.speak(`You counted ${birdCount} birds! Great counting!`);
-      stars++;
-      totalPlayed++;
-      saveProgress();
-      await wait(1000);
-      showRewardScreen();
-    } else {
-      // Show prompt for next bird
-      await tts.speak('Tap the next bird!');
-      isBusy = false;
+    // All birds flew past. Now ask: How many?
+    const questionBoard = document.createElement('div');
+    questionBoard.style.display = 'flex';
+    questionBoard.style.flexDirection = 'column';
+    questionBoard.style.alignItems = 'center';
+    questionBoard.style.gap = '16px';
+    questionBoard.style.marginTop = '20px';
+    board.appendChild(questionBoard);
+
+    const question = document.createElement('div');
+    question.className = 'game-prompt';
+    question.style.fontSize = '1.5rem';
+    question.textContent = 'How many birds flew by?';
+    questionBoard.appendChild(question);
+
+    await tts.speak('How many birds flew by?');
+    await wait(200);
+
+    // Number pad (big, simple)
+    const maxNum = Math.min(birdCount + 3, 20);
+    const startNum = Math.max(1, birdCount - 3);
+    const numbers = [];
+    for (let i = startNum; i <= maxNum; i++) numbers.push(i);
+
+    const pad = document.createElement('div');
+    pad.style.display = 'grid';
+    pad.style.gridTemplateColumns = 'repeat(5, 1fr)';
+    pad.style.gap = '10px';
+    pad.style.maxWidth = '400px';
+    pad.style.width = '100%';
+    questionBoard.appendChild(pad);
+
+    for (const num of numbers) {
+      const btn = document.createElement('button');
+      btn.className = 'number-btn';
+      btn.textContent = num;
+      btn.style.minHeight = '60px';
+      btn.style.fontSize = '1.5rem';
+      btn.addEventListener('click', async () => {
+        if (isBusy) return;
+        isBusy = true;
+        audio.playTap();
+
+        if (num === birdCount) {
+          btn.classList.add('correct');
+          audio.playChime();
+          await wait(200);
+          audio.playCelebrate();
+          await tts.speak(`Yes! ${birdCount} birds flew by! Great counting!`);
+          stars++;
+          totalPlayed++;
+          saveProgress();
+          await wait(1000);
+          showFlyByReward();
+        } else {
+          btn.classList.add('wrong');
+          await wait(200);
+          btn.classList.remove('wrong');
+          audio.playHmm();
+          await tts.speak(`Let's count again!`);
+
+          // Replay the birds flying back (show the count)
+          await replayBirds(roundBirds, scene);
+          await wait(300);
+          await tts.speak(`There were ${birdCount} birds! Try again!`);
+          isBusy = false;
+        }
+      });
+      pad.appendChild(btn);
     }
+    isBusy = false;
   }
 
-  async function showRewardScreen() {
+  async function replayBirds(birds, scene) {
+    // Birds fly back in reverse, showing each with count
+    let counted = 0;
+    for (let i = 0; i < birds.length; i++) {
+      const bird = birds[i];
+      const el = document.createElement('div');
+      el.textContent = bird.emoji;
+      el.style.fontSize = '2rem';
+      el.style.position = 'absolute';
+      el.style.left = '-40px';
+      el.style.top = `${40 + (i % 3) * 60}px`;
+      el.style.transition = 'left 0.8s ease-in-out';
+      el.style.zIndex = '2';
+      scene.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.left = '50%';
+      });
+      counted++;
+      const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
+      await tts.speak(`${countWord}!`);
+      await wait(400);
+    }
+    await wait(500);
+    // Clear replay birds
+    scene.querySelectorAll('div[style*="position: absolute"]').forEach(el => {
+      if (!el.style.top.includes('px') || el.style.zIndex !== '2') return;
+      el.style.left = '120%';
+    });
+  }
+
+  async function showFlyByReward() {
     clearBoard();
     const board = document.createElement('div');
     board.className = 'game-board';
@@ -196,7 +252,7 @@ export function init(container, { tts, audio, state }) {
       audio.playTap();
       nextBtn.disabled = true;
       await wait(300);
-      startRound();
+      startFlyByMode();
     });
 
     const moreBtn = document.createElement('button');
@@ -205,39 +261,38 @@ export function init(container, { tts, audio, state }) {
     moreBtn.addEventListener('click', async () => {
       audio.playTap();
       moreBtn.disabled = true;
-      // Increase level (more birds next round)
-      if (currentLevel < LEVELS.length - 1) {
-        currentLevel++;
-      }
+      if (currentLevel < LEVELS.length - 1) currentLevel++;
       await wait(300);
-      startRound();
+      startFlyByMode();
     });
 
     btnRow.appendChild(nextBtn);
     btnRow.appendChild(moreBtn);
-
     reward.appendChild(bigEmoji);
     reward.appendChild(praise);
     reward.appendChild(btnRow);
     board.appendChild(reward);
     container.appendChild(board);
-
-    await wait(500);
   }
 
-  async function startRound() {
+  // ============================================================
+  // MODE 2: "Count Them!" - Static birds on screen, tap to count
+  // ============================================================
+  async function startCountThemMode() {
     isBusy = false;
-    generateRound();
     clearBoard();
+    const level = LEVELS[currentLevel];
+    birdCount = Math.floor(Math.random() * (level.max - level.min + 1)) + level.min;
+    let counted = 0;
 
     const board = document.createElement('div');
     board.className = 'game-board';
+    container.appendChild(board);
 
-    // Level label + counter
     const infoRow = document.createElement('div');
     infoRow.style.textAlign = 'center';
     infoRow.style.marginBottom = '0.5rem';
-    infoRow.innerHTML = `<div style="font-size:1rem;color:#666;">Level ${currentLevel + 1} • ${LEVELS[currentLevel].label}</div>`;
+    infoRow.innerHTML = `<div style="font-size:1rem;color:#666;">Level ${currentLevel + 1} • Count Them!</div>`;
     board.appendChild(infoRow);
 
     const counter = document.createElement('div');
@@ -256,29 +311,153 @@ export function init(container, { tts, audio, state }) {
     prompt.textContent = 'Tap the birds to count them!';
     board.appendChild(prompt);
 
-    const scene = createBirdScene();
+    const scene = document.createElement('div');
+    scene.style.position = 'relative';
+    scene.style.width = '100%';
+    scene.style.maxWidth = '520px';
+    scene.style.height = '320px';
+    scene.style.background = 'linear-gradient(180deg, #9BB8D3 0%, #C8D8E8 70%, #F5F0E8 70%)';
+    scene.style.borderRadius = '20px';
+    scene.style.overflow = 'hidden';
+    scene.style.margin = '0 auto';
+    scene.style.border = '3px solid #7BA598';
+    board.appendChild(scene);
 
-    // Animate birds flying in one by one
+    // Pick birds
+    const pool = shuffle([...BIRDS]);
+    const currentBirds = [];
+    for (let i = 0; i < birdCount; i++) {
+      currentBirds.push({ ...pool[i % pool.length], id: i });
+    }
+
+    // Place birds scattered
+    const cols = birdCount <= 5 ? 3 : birdCount <= 10 ? 4 : 5;
     currentBirds.forEach((bird, i) => {
-      const birdEl = createBirdElement(bird, i);
-      birdEl.addEventListener('click', () => handleBirdTap(birdEl, bird, i));
-      scene.appendChild(birdEl);
+      const row = Math.floor(i / cols);
+      const col = i % cols;
+      const jitterX = (Math.random() - 0.5) * 20;
+      const jitterY = (Math.random() - 0.5) * 20;
+      const x = col * 90 + 30 + jitterX;
+      const y = row * 70 + 30 + jitterY;
 
-      // Staggered fly-in animation
+      const el = document.createElement('div');
+      el.textContent = bird.emoji;
+      el.style.fontSize = '2.5rem';
+      el.style.position = 'absolute';
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+      el.style.cursor = 'pointer';
+      el.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+      el.style.userSelect = 'none';
+      el.style.zIndex = '2';
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-20px) scale(0.7)';
+      el.dataset.tapped = 'false';
+
+      el.addEventListener('click', async () => {
+        if (isBusy || el.dataset.tapped === 'true') return;
+        isBusy = true;
+        audio.playTap();
+        audio.playChirp();
+        counted++;
+
+        el.dataset.tapped = 'true';
+        el.style.transform = 'scale(1.2) translateY(-8px)';
+        el.style.opacity = '0.5';
+        el.style.pointerEvents = 'none';
+
+        counter.textContent = `${counted} / ${birdCount}`;
+        const countWord = NUMBER_WORDS[counted - 1] || counted.toString();
+        await tts.speak(`${countWord}!`);
+
+        await wait(300);
+        el.style.transform = 'scale(1) translateY(0)';
+
+        if (counted === birdCount) {
+          await wait(400);
+          audio.playChime();
+          await wait(200);
+          audio.playCelebrate();
+          await tts.speak(`You counted ${birdCount} birds! Great counting!`);
+          stars++;
+          totalPlayed++;
+          saveProgress();
+          await wait(1000);
+          showCountReward();
+        } else {
+          await tts.speak('Tap the next bird!');
+          isBusy = false;
+        }
+      });
+
+      scene.appendChild(el);
+      // Staggered fly-in
       setTimeout(() => {
-        birdEl.style.opacity = '1';
-        birdEl.style.transform = 'translateY(0) scale(1)';
-      }, 150 + i * 120);
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0) scale(1)';
+      }, 150 + i * 100);
     });
 
-    board.appendChild(scene);
-    container.appendChild(board);
-
-    await wait(500 + birdCount * 120);
+    await wait(500 + birdCount * 100);
     await tts.speak(`Tap the birds to count them! There are ${birdCount} birds!`);
   }
 
-  function showLevelSelect() {
+  async function showCountReward() {
+    clearBoard();
+    const board = document.createElement('div');
+    board.className = 'game-board';
+
+    const reward = document.createElement('div');
+    reward.className = 'reward-screen fade-in';
+
+    const bigEmoji = document.createElement('div');
+    bigEmoji.className = 'big-emoji';
+    bigEmoji.textContent = '⭐';
+
+    const praise = document.createElement('div');
+    praise.className = 'reward-text';
+    praise.textContent = `You counted ${birdCount} birds!`;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.display = 'flex';
+    btnRow.style.gap = '16px';
+    btnRow.style.flexWrap = 'wrap';
+    btnRow.style.justifyContent = 'center';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'btn-primary';
+    nextBtn.textContent = 'Next Round';
+    nextBtn.addEventListener('click', async () => {
+      audio.playTap();
+      nextBtn.disabled = true;
+      await wait(300);
+      startCountThemMode();
+    });
+
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'btn-secondary';
+    moreBtn.textContent = 'More Birds!';
+    moreBtn.addEventListener('click', async () => {
+      audio.playTap();
+      moreBtn.disabled = true;
+      if (currentLevel < LEVELS.length - 1) currentLevel++;
+      await wait(300);
+      startCountThemMode();
+    });
+
+    btnRow.appendChild(nextBtn);
+    btnRow.appendChild(moreBtn);
+    reward.appendChild(bigEmoji);
+    reward.appendChild(praise);
+    reward.appendChild(btnRow);
+    board.appendChild(reward);
+    container.appendChild(board);
+  }
+
+  // ============================================================
+  // Start screen with mode selection
+  // ============================================================
+  function showModeSelect() {
     clearBoard();
     const board = document.createElement('div');
     board.className = 'game-board';
@@ -290,7 +469,7 @@ export function init(container, { tts, audio, state }) {
 
     const sub = document.createElement('div');
     sub.className = 'game-subprompt';
-    sub.textContent = 'Tap birds to count them!';
+    sub.textContent = 'How do you want to count?';
     board.appendChild(sub);
 
     const emoji = document.createElement('div');
@@ -300,25 +479,55 @@ export function init(container, { tts, audio, state }) {
     emoji.textContent = '🐦🐦🐦';
     board.appendChild(emoji);
 
-    const startBtn = document.createElement('button');
-    startBtn.className = 'btn-primary';
-    startBtn.style.fontSize = '1.4rem';
-    startBtn.textContent = 'Start Counting!';
-    startBtn.addEventListener('click', async () => {
-      audio.playTap();
-      startBtn.disabled = true;
-      await wait(300);
-      startRound();
-    });
-    board.appendChild(startBtn);
+    const modes = [
+      { id: 'flyby', title: 'Birds Fly By!', emoji: '✈️', desc: 'Watch birds fly past!' },
+      { id: 'count', title: 'Count Them!', emoji: '👆', desc: 'Tap birds to count!' }
+    ];
 
-    const levelSelect = document.createElement('div');
-    levelSelect.style.marginTop = '1.5rem';
-    levelSelect.style.display = 'grid';
-    levelSelect.style.gridTemplateColumns = 'repeat(2, 1fr)';
-    levelSelect.style.gap = '12px';
-    levelSelect.style.maxWidth = '400px';
-    levelSelect.style.width = '100%';
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    grid.style.gap = '16px';
+    grid.style.maxWidth = '400px';
+    grid.style.width = '100%';
+
+    for (const mode of modes) {
+      const tile = document.createElement('button');
+      tile.className = 'tile';
+      tile.style.display = 'flex';
+      tile.style.flexDirection = 'column';
+      tile.style.alignItems = 'center';
+      tile.style.justifyContent = 'center';
+      tile.style.gap = '0.5rem';
+      tile.style.padding = '1rem';
+      tile.style.minHeight = '120px';
+      tile.innerHTML = `
+        <span style="font-size:2.5rem">${mode.emoji}</span>
+        <span style="font-size:1.1rem;font-weight:700">${mode.title}</span>
+        <span style="font-size:0.85rem;color:#666">${mode.desc}</span>
+      `;
+      tile.addEventListener('click', async () => {
+        audio.playTap();
+        tile.disabled = true;
+        await wait(300);
+        if (mode.id === 'flyby') {
+          startFlyByMode();
+        } else {
+          startCountThemMode();
+        }
+      });
+      grid.appendChild(tile);
+    }
+    board.appendChild(grid);
+
+    // Level selector (small tiles below)
+    const levelRow = document.createElement('div');
+    levelRow.style.marginTop = '1.5rem';
+    levelRow.style.display = 'grid';
+    levelRow.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    levelRow.style.gap = '10px';
+    levelRow.style.maxWidth = '360px';
+    levelRow.style.width = '100%';
 
     LEVELS.forEach((lvl, idx) => {
       const tile = document.createElement('button');
@@ -327,23 +536,33 @@ export function init(container, { tts, audio, state }) {
       tile.style.flexDirection = 'column';
       tile.style.alignItems = 'center';
       tile.style.justifyContent = 'center';
-      tile.style.gap = '0.5rem';
+      tile.style.gap = '0.25rem';
       tile.style.padding = '0.5rem';
-      tile.innerHTML = `<span style="font-size:2rem">🐦</span><span style="font-size:0.9rem;font-weight:bold">${lvl.label}</span>`;
+      tile.style.minHeight = '70px';
+      tile.innerHTML = `<span style="font-size:1.5rem">🐦</span><span style="font-size:0.8rem;font-weight:bold">${lvl.label}</span>`;
+      if (idx === currentLevel) {
+        tile.style.borderColor = '#7BA598';
+        tile.style.background = '#f0f7e8';
+      }
       tile.addEventListener('click', async () => {
         audio.playTap();
         currentLevel = idx;
-        await wait(300);
-        startRound();
+        // Visual feedback
+        levelRow.querySelectorAll('.tile').forEach(t => {
+          t.style.borderColor = '#E8E0D5';
+          t.style.background = '#FFFFFF';
+        });
+        tile.style.borderColor = '#7BA598';
+        tile.style.background = '#f0f7e8';
       });
-      levelSelect.appendChild(tile);
+      levelRow.appendChild(tile);
     });
-    board.appendChild(levelSelect);
+    board.appendChild(levelRow);
 
     container.appendChild(board);
   }
 
-  showLevelSelect();
+  showModeSelect();
 
   return () => {
     clearBoard();
@@ -351,7 +570,6 @@ export function init(container, { tts, audio, state }) {
   };
 }
 
-// Simple shuffle helper for local use
 function shuffle(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
