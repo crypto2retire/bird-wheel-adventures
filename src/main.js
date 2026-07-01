@@ -13,7 +13,8 @@ const gameModules = {
   sortTheFlock: () => import('./games/SortTheFlock.js'),
   findTheBird: () => import('./games/FindTheBird.js'),
   wheelCounter: () => import('./games/WheelCounter.js'),
-  freePlay: () => import('./games/FreePlay.js')
+  freePlay: () => import('./games/FreePlay.js'),
+  cityExplorer: () => import('./games/CityExplorer.js')
 };
 
 const GAMES = [
@@ -24,7 +25,8 @@ const GAMES = [
   { id: 'sortTheFlock', title: 'Sort the Flock', icon: '🗂️', color: '#9BB8D3' },
   { id: 'findTheBird', title: 'Find the Bird!', icon: '🔍', color: '#C4A882' },
   { id: 'wheelCounter', title: 'Wheel Counter', icon: '🎡', color: '#D4A574' },
-  { id: 'freePlay', title: 'Free Play', icon: '🏖️', color: '#A8C686' }
+  { id: 'cityExplorer', title: 'City Explorer', icon: '🏙️', color: '#A8C686' },
+  { id: 'freePlay', title: 'Free Play', icon: '🏖️', color: '#7BA598' }
 ];
 
 let currentGame = null;
