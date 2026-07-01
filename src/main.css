@@ -80,10 +80,15 @@ html, body {
   text-align: center;
   flex: 1;
   text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  cursor: default;
+  user-select: none;
+}
+
+.game-container:has(#back-btn:not(.hidden)) .game-title {
+  cursor: pointer;
 }
 
 .nav-btn {
-  width: 44px;
   height: 44px;
   border: none;
   border-radius: 12px;
@@ -94,6 +99,8 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: background 0.2s ease;
+  font-family: inherit;
+  white-space: nowrap;
 }
 
 .nav-btn:hover, .nav-btn:active {

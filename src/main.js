@@ -39,8 +39,15 @@ const settingsBtn = document.getElementById('settings-btn');
 const gameTitle = document.getElementById('game-title');
 const settingsPanel = document.getElementById('settings-panel');
 
-// Initialize
 function init() {
+  // Tap title to go home (fallback for stuck users)
+  gameTitle.addEventListener('click', () => {
+    if (currentGame) {
+      audio.playTap();
+      goHome();
+    }
+  });
+
   // Apply settings
   applySettings();
   
