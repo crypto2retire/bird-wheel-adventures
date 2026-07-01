@@ -20,11 +20,11 @@
 <body>
   <div id="app" class="game-container">
     <header id="game-header" class="game-header">
-      <button id="back-btn" class="nav-btn hidden" aria-label="Go back" style="gap:4px;padding:0 12px;font-size:0.9rem;font-weight:700;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <button id="back-btn" class="nav-btn hidden" aria-label="Go back home" style="gap:4px;padding:0 14px;font-size:1rem;font-weight:800;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M15 18l-6-6 6-6"/>
         </svg>
-        <span>Home</span>
+        <span>HOME</span>
       </button>
       <h1 id="game-title" class="game-title">Bird & Wheel Adventures</h1>
       <button id="settings-btn" class="nav-btn hidden" aria-label="Settings">
@@ -76,6 +76,18 @@
       </div>
     </div>
   </div>
+  <script>
+    // Hard reset: unregister old service workers and clear caches to prevent stale file issues
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        for (const reg of regs) reg.unregister();
+      }).catch(() => {});
+    }
+    // Clear any old cache storage
+    if (window.caches) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+    }
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

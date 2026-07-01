@@ -41,7 +41,6 @@
 
 html, body {
   height: 100%;
-  overflow: hidden;
   font-family: 'Nunito', 'Open Sans', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -56,10 +55,12 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* Use dynamic viewport height on mobile */
   width: 100vw;
   max-width: 900px;
   margin: 0 auto;
   position: relative;
+  overflow: hidden;
 }
 
 /* Header */
@@ -117,12 +118,14 @@ html, body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   padding: var(--spacing);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   position: relative;
+  min-height: 0; /* Critical for flex child scrolling */
 }
 
 /* Home Screen */
@@ -191,6 +194,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: inherit;
 }
 
 .btn-primary:hover, .btn-primary:active {
@@ -209,6 +213,7 @@ html, body {
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 50px;
+  font-family: inherit;
 }
 
 .btn-secondary:hover, .btn-secondary:active {
@@ -233,6 +238,7 @@ html, body {
   box-shadow: 0 2px 8px var(--card-shadow);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   border: 3px solid transparent;
+  font-family: inherit;
 }
 
 .tile:hover, .tile:active {
@@ -466,6 +472,7 @@ html, body {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 .number-btn:hover, .number-btn:active {

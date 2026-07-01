@@ -1,18 +1,18 @@
 import { wait } from '../core/gameData.js';
 
 const CITY_ITEMS = [
-  { emoji: '🏠', name: 'house', sound: 'tap', tts: 'You found a house! A house is where people live.' },
-  { emoji: '🚗', name: 'car', sound: 'beep', tts: 'Beep beep! It is a car! Cars have wheels!' },
-  { emoji: '🌳', name: 'tree', sound: 'chirp', tts: 'A tree! Birds like to sit in trees!' },
-  { emoji: '🐕', name: 'dog', sound: 'beep', tts: 'Woof woof! A dog! Dogs are friendly!' },
-  { emoji: '🏢', name: 'building', sound: 'tap', tts: 'A big building! Tall buildings are called skyscrapers!' },
-  { emoji: '🚌', name: 'bus', sound: 'beep', tts: 'A bus! Buses carry lots of people!' },
-  { emoji: '🚤', name: 'boat', sound: 'beep', tts: 'A boat! Boats go on the water!' },
-  { emoji: '🐦', name: 'bird', sound: 'chirp', tts: 'Chirp chirp! A bird! Birds can fly!' },
-  { emoji: '🚒', name: 'fire truck', sound: 'beep', tts: 'A fire truck! Fire trucks go fast to help people!' },
-  { emoji: '🚁', name: 'helicopter', sound: 'beep', tts: 'A helicopter! Helicopters fly in the sky!' },
-  { emoji: '🏪', name: 'store', sound: 'tap', tts: 'A store! You can buy things at a store!' },
-  { emoji: '🚦', name: 'traffic light', sound: 'tap', tts: 'Red light! Stop! Green light! Go!' }
+  { emoji: '🏠', name: 'house', sound: 'tap', tts: 'A house! People live here!' },
+  { emoji: '🚗', name: 'car', sound: 'beep', tts: 'Beep beep! A car!' },
+  { emoji: '🌳', name: 'tree', sound: 'chirp', tts: 'A tree! Birds sit here!' },
+  { emoji: '🐕', name: 'dog', sound: 'beep', tts: 'Woof! A dog!' },
+  { emoji: '🏢', name: 'building', sound: 'tap', tts: 'A big building!' },
+  { emoji: '🚌', name: 'bus', sound: 'beep', tts: 'A bus! Room for lots!' },
+  { emoji: '🚤', name: 'boat', sound: 'beep', tts: 'A boat! Floats on water!' },
+  { emoji: '🐦', name: 'bird', sound: 'chirp', tts: 'Chirp! A bird!' },
+  { emoji: '🚒', name: 'fire truck', sound: 'beep', tts: 'A fire truck! Goes fast!' },
+  { emoji: '🚁', name: 'helicopter', sound: 'beep', tts: 'A helicopter! Flies!' },
+  { emoji: '🏪', name: 'store', sound: 'tap', tts: 'A store! Buy things!' },
+  { emoji: '🚦', name: 'traffic light', sound: 'tap', tts: 'Stop! Go!' }
 ];
 
 const ROWS = 4;
@@ -30,12 +30,12 @@ export function init(container, { tts, audio, state }) {
   const totalVisited = progress.totalVisited || 0;
   const totalPlayed = progress.totalPlayed || 0;
 
-  // Build the game board
   const board = document.createElement('div');
   board.className = 'game-board';
   board.style.width = '100%';
-  board.style.maxWidth = '420px';
+  board.style.maxWidth = '400px';
   board.style.gap = '8px';
+  board.style.padding = '8px 0';
   container.appendChild(board);
 
   // Info bar
@@ -45,23 +45,22 @@ export function init(container, { tts, audio, state }) {
   infoBar.style.alignItems = 'center';
   infoBar.style.width = '100%';
   infoBar.style.marginBottom = '4px';
-  infoBar.innerHTML = `<span style="font-size:1rem;color:#666;">Explore!</span><span id="city-visited" style="font-size:1rem;color:#7BA598;font-weight:700;">0 / ${ROWS * COLS}</span>`;
+  infoBar.innerHTML = `<span style="font-size:0.95rem;color:#666;">Explore!</span><span id="city-visited" style="font-size:0.95rem;color:#7BA598;font-weight:700;">0 / ${ROWS * COLS}</span>`;
   board.appendChild(infoBar);
 
-  // Grid container — compact
+  // Grid container — compact, fixed height
   const gridWrap = document.createElement('div');
   gridWrap.style.position = 'relative';
   gridWrap.style.width = '100%';
-  gridWrap.style.maxWidth = '380px';
-  gridWrap.style.aspectRatio = `${COLS} / ${ROWS}`;
+  gridWrap.style.maxWidth = '340px';
+  gridWrap.style.height = '240px';
   gridWrap.style.background = '#e0e0e0';
-  gridWrap.style.borderRadius = '16px';
+  gridWrap.style.borderRadius = '12px';
   gridWrap.style.overflow = 'hidden';
   gridWrap.style.border = '3px solid #7BA598';
   gridWrap.style.margin = '0 auto';
   board.appendChild(gridWrap);
 
-  // Grid cells
   const cellW = 100 / COLS;
   const cellH = 100 / ROWS;
   const shuffledItems = shuffle([...CITY_ITEMS]);
@@ -71,7 +70,6 @@ export function init(container, { tts, audio, state }) {
       const idx = r * COLS + c;
       const item = shuffledItems[idx % shuffledItems.length];
       const cell = document.createElement('div');
-      cell.className = 'city-cell';
       cell.dataset.row = String(r);
       cell.dataset.col = String(c);
       cell.style.position = 'absolute';
@@ -82,9 +80,9 @@ export function init(container, { tts, audio, state }) {
       cell.style.display = 'flex';
       cell.style.alignItems = 'center';
       cell.style.justifyContent = 'center';
-      cell.style.fontSize = '2rem';
+      cell.style.fontSize = '1.8rem';
       cell.style.cursor = 'pointer';
-      cell.style.transition = 'transform 0.3s ease, background 0.3s ease';
+      cell.style.transition = 'transform 0.3s ease';
       cell.style.border = '1px solid rgba(0,0,0,0.05)';
       cell.style.background = (r + c) % 2 === 0 ? '#F0EDE6' : '#E8E4DC';
       cell.textContent = item.emoji;
@@ -104,7 +102,7 @@ export function init(container, { tts, audio, state }) {
   // Character
   const character = document.createElement('div');
   character.textContent = '🧒';
-  character.style.fontSize = '1.8rem';
+  character.style.fontSize = '1.6rem';
   character.style.position = 'absolute';
   character.style.zIndex = '10';
   character.style.transition = 'top 0.3s ease, left 0.3s ease';
@@ -114,7 +112,7 @@ export function init(container, { tts, audio, state }) {
   character.style.justifyContent = 'center';
   character.style.width = `${cellW}%`;
   character.style.height = `${cellH}%`;
-  character.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))';
+  character.style.filter = 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))';
   gridWrap.appendChild(character);
 
   function updateCharPosition() {
@@ -131,41 +129,39 @@ export function init(container, { tts, audio, state }) {
     const current = gridItems.find(gi => gi.row === charRow && gi.col === charCol);
     if (current) {
       current.element.style.background = '#D4E8D4';
-      current.element.style.boxShadow = 'inset 0 0 0 3px #7BA598';
+      current.element.style.boxShadow = 'inset 0 0 0 2px #7BA598';
     }
   }
   highlightCurrentCell();
 
-  // Controls + Home button in one row
+  // Controls row — arrows + Home button, always visible
   const controlsRow = document.createElement('div');
   controlsRow.style.display = 'flex';
   controlsRow.style.alignItems = 'center';
   controlsRow.style.justifyContent = 'center';
   controlsRow.style.gap = '12px';
-  controlsRow.style.marginTop = '12px';
+  controlsRow.style.marginTop = '10px';
   controlsRow.style.width = '100%';
+  board.appendChild(controlsRow);
 
-  // Direction pad (compact)
+  // Direction pad
   const dpad = document.createElement('div');
   dpad.style.display = 'grid';
   dpad.style.gridTemplateColumns = 'repeat(3, 1fr)';
-  dpad.style.gap = '4px';
-  dpad.style.maxWidth = '180px';
+  dpad.style.gap = '3px';
+  dpad.style.maxWidth = '150px';
 
-  // Empty top-left, Up, Empty top-right
   dpad.appendChild(document.createElement('div'));
   dpad.appendChild(makeArrow('⬆️', 'up'));
   dpad.appendChild(document.createElement('div'));
-  // Left, Center dot, Right
   dpad.appendChild(makeArrow('⬅️', 'left'));
   const centerDot = document.createElement('div');
   centerDot.style.display = 'flex';
   centerDot.style.alignItems = 'center';
   centerDot.style.justifyContent = 'center';
-  centerDot.innerHTML = '<span style="font-size:1.2rem;color:#ccc;">●</span>';
+  centerDot.innerHTML = '<span style="font-size:1rem;color:#ccc;">●</span>';
   dpad.appendChild(centerDot);
   dpad.appendChild(makeArrow('➡️', 'right'));
-  // Empty bottom-left, Down, Empty bottom-right
   dpad.appendChild(document.createElement('div'));
   dpad.appendChild(makeArrow('⬇️', 'down'));
   dpad.appendChild(document.createElement('div'));
@@ -176,47 +172,47 @@ export function init(container, { tts, audio, state }) {
   const homeBtn = document.createElement('button');
   homeBtn.className = 'btn-secondary';
   homeBtn.style.minHeight = '60px';
-  homeBtn.style.minWidth = '80px';
-  homeBtn.style.fontSize = '1rem';
+  homeBtn.style.minWidth = '70px';
+  homeBtn.style.fontSize = '0.9rem';
   homeBtn.style.fontWeight = '700';
   homeBtn.style.display = 'flex';
   homeBtn.style.flexDirection = 'column';
   homeBtn.style.alignItems = 'center';
   homeBtn.style.justifyContent = 'center';
   homeBtn.style.gap = '2px';
-  homeBtn.innerHTML = '<span style="font-size:1.5rem;">🏠</span><span>Home</span>';
+  homeBtn.style.borderRadius = '14px';
+  homeBtn.innerHTML = '<span style="font-size:1.4rem;">🏠</span><span>Home</span>';
   homeBtn.addEventListener('click', () => {
     audio.playTap();
-    // Trigger the main.js back button behavior
     const backBtn = document.getElementById('back-btn');
     if (backBtn) backBtn.click();
   });
   controlsRow.appendChild(homeBtn);
 
-  board.appendChild(controlsRow);
-
-  // Interaction panel
+  // Speech bubble
   const interactionPanel = document.createElement('div');
   interactionPanel.className = 'speech-bubble';
   interactionPanel.style.marginTop = '8px';
   interactionPanel.style.width = '100%';
-  interactionPanel.style.maxWidth = '380px';
-  interactionPanel.style.minHeight = '50px';
+  interactionPanel.style.maxWidth = '360px';
+  interactionPanel.style.minHeight = '40px';
+  interactionPanel.style.padding = '12px 16px';
   interactionPanel.style.display = 'flex';
   interactionPanel.style.alignItems = 'center';
   interactionPanel.style.justifyContent = 'center';
-  interactionPanel.style.fontSize = '1.1rem';
+  interactionPanel.style.fontSize = '1rem';
   interactionPanel.textContent = 'Tap arrows to walk!';
   board.appendChild(interactionPanel);
 
   function makeArrow(emoji, direction) {
     const btn = document.createElement('button');
     btn.className = 'btn-primary';
-    btn.style.minWidth = '50px';
-    btn.style.minHeight = '50px';
-    btn.style.fontSize = '1.5rem';
+    btn.style.minWidth = '44px';
+    btn.style.minHeight = '44px';
+    btn.style.fontSize = '1.3rem';
     btn.style.padding = '0';
-    btn.style.borderRadius = '12px';
+    btn.style.borderRadius = '10px';
+    btn.style.fontFamily = 'inherit';
     btn.textContent = emoji;
     btn.addEventListener('click', () => moveCharacter(direction));
     return btn;
@@ -229,7 +225,6 @@ export function init(container, { tts, audio, state }) {
 
     let newRow = charRow;
     let newCol = charCol;
-
     switch (direction) {
       case 'up': newRow = Math.max(0, charRow - 1); break;
       case 'down': newRow = Math.min(ROWS - 1, charRow + 1); break;
@@ -245,7 +240,6 @@ export function init(container, { tts, audio, state }) {
       await wait(300);
       await interactWithCurrentCell();
     }
-
     isMoving = false;
   }
 
@@ -253,14 +247,12 @@ export function init(container, { tts, audio, state }) {
     if (isMoving || !isRunning) return;
     isMoving = true;
     audio.playTap();
-
     charRow = row;
     charCol = col;
     updateCharPosition();
     highlightCurrentCell();
     await wait(300);
     await interactWithCurrentCell();
-
     isMoving = false;
   }
 
@@ -271,7 +263,6 @@ export function init(container, { tts, audio, state }) {
     const cell = current.element;
     const item = current.item;
 
-    // Mark visited
     if (cell.dataset.visited === 'false') {
       cell.dataset.visited = 'true';
       cell.style.opacity = '0.6';
@@ -280,22 +271,18 @@ export function init(container, { tts, audio, state }) {
       if (visitedEl) visitedEl.textContent = `${visited.size} / ${ROWS * COLS}`;
     }
 
-    // Animation
     cell.style.transform = 'scale(1.3)';
     await wait(200);
     cell.style.transform = 'scale(1)';
 
-    // Sound
     if (item.sound === 'chirp') audio.playChirp();
     else if (item.sound === 'beep') audio.playBeep();
     else audio.playTap();
 
-    // Show interaction
     interactionPanel.textContent = item.tts;
     await wait(200);
     await tts.speak(item.tts);
 
-    // Check if all visited
     if (visited.size === ROWS * COLS) {
       await wait(500);
       showReward();
@@ -307,16 +294,15 @@ export function init(container, { tts, audio, state }) {
     const reward = document.createElement('div');
     reward.className = 'reward-screen fade-in';
     reward.innerHTML = `
-      <div style="font-size:5rem;">🌟</div>
-      <div class="game-prompt" style="margin-top:16px;">City Explorer!</div>
-      <div style="font-size:1.5rem;color:#555;margin-top:12px;">You visited everything!</div>
-      <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;justify-content:center;">
+      <div style="font-size:4rem;">🌟</div>
+      <div class="game-prompt" style="margin-top:12px;">City Explorer!</div>
+      <div style="font-size:1.3rem;color:#555;margin-top:8px;">You visited everything!</div>
+      <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;">
         <button id="ce-replay" class="btn-primary">Explore Again!</button>
         <button id="ce-home" class="btn-secondary">Home</button>
       </div>
     `;
     board.appendChild(reward);
-
     audio.playCelebrate();
     await tts.speak('You explored the whole city! Great job!');
 
@@ -337,9 +323,8 @@ export function init(container, { tts, audio, state }) {
     });
   }
 
-  // Welcome TTS
   wait(600).then(() => {
-    if (isRunning) tts.speak('Welcome to the city! Tap the arrows to walk around!');
+    if (isRunning) tts.speak('Welcome to the city! Tap arrows to walk!');
   });
 
   return () => {
